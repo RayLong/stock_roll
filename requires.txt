@@ -1,0 +1,7 @@
+django-tastypie
+django-daddy-avatar
+django-user-profile
+pyCalverter
+django-registration
+django-registration-defaults
+django_compressor

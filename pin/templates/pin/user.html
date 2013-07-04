@@ -1,0 +1,28 @@
+{% extends "base/pin.html"%}
+{% load pin_tags %}
+{%load cache %}
+
+{% block extra_js %}
+<script src="{{MEDIA_URL}}js/jquery.masonry.min.js"></script>
+{% endblock extra_js %}
+
+
+{%block title%} - {{cur_user|get_username}}'s stocks {%endblock title%}
+
+{% block content %}
+<script type="text/javascript">
+var start_loading=0;
+</script>
+
+<div id="profile" class="row row-fluid">
+	<div class="span12">
+		{% include "pin/user_profile.html"%}
+                {% if latest_items.0.image %}
+		    <div id="feed-ul">
+			{% include "pin/_items.html"%}
+		    </div>
+                {% endif %}
+	</div>
+</div>
+{% include "pin/feed_scripts.html" %}
+{% endblock content %}

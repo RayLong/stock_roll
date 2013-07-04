@@ -1,0 +1,5 @@
+*.pyc
+*.svg
+pin/media/pin/cache/
+pin/media/pin/daddy_avatar/
+pin/media/pin/pin/

@@ -1,0 +1,99 @@
+{% load pin_tags%}
+<form method="post" class="form-horizontal" action="{% url 'pin-send'%}" id="pin_form" >
+{% csrf_token%}
+	<div class="control-group">
+      	{{ form.errors}}
+        <label class="control-label">Image:</label>
+		<div class="controls">
+			<div class="uploaded-image"> </div>
+			<input type="hidden" value="" id="image_field" name="image" />
+			<div id="file-uploader">       
+			    <noscript>          
+			        <p>Please enable JavaScript to use file uploader.</p>
+			    </noscript>         
+			</div>
+		</div>
+    </div>
+	
+	<div class="control-group ">
+            
+        <label class="control-label">Description:</label>
+		<div class="controls">
+			<textarea id="id_text" rows="5" cols="40" name="text"> </textarea>
+		<span class="help-inline"> </span>
+		</div>
+    </div>
+    
+    <div class="control-group">
+		<label class="control-label">Address:</label>
+		<div class="controls">
+			<input type="text" name="url" placeholder="URL" class="span3 ltr">
+		</div>
+	</div>
+	
+	<div class="control-group">
+		<label class="control-label">Tags:</label>
+		<p class="text-info">Please enter Separated tags</p>
+		<div class="controls">
+			<textarea id="textarea" name="tags" rows="1"></textarea>
+		</div>
+		
+	</div>
+
+<div class="form-actions">
+	<input type="submit" class="btn btn-primary" value="Save" />
+</div>
+</form>
+
+{% load compress %}
+{% compress js inline%}
+<script type="text/javascript">
+var image_selected=0;
+$("#pin_form").submit(function(){
+	if(image_selected == 0){
+		alert('Please select an image');
+		return false;
+		
+	}else{
+		return true;
+	}
+});
+
+$('#textarea').textext({ plugins: 'tags' });
+
+</script>
+
+<script>
+function createUploader(){            
+	var uploader = new qq.FileUploader({
+	element: document.getElementById('file-uploader'),
+	action: '{% url 'pin-upload'%}',
+	debug: true,
+	multiple: false,
+	allowedExtensions : ['png','jpg'],
+	sizeLimit : 1024*1024*10,
+	messages : {
+		'typeError':'{file} Not suitable for this. Only {extensions} are allowed formats.',
+		'sizeError':'{file} Is very large. Your file must be less than {sizeLimit}.',
+		'minSizeError':'{file} Is very small. Your file must be greater than {minSizeLimit}.',
+		'emptyError':'{file} File is empty!',
+		'onLeave':'File being loaded. If you leave the page, the operation is canceled.'},
+	showMessage:function(message){ 
+		alert(message); 
+	},
+	onComplete : function(id, fileName, responseJSON){
+		if(responseJSON.success)
+		{
+			$('#file-uploader').hide();
+            $('.uploaded-image').html('<img src="/media/pin/temp/t/'+responseJSON.file+'">');
+			$('#image_field').val(responseJSON.file);
+			image_selected=1;
+		}else{
+			alert('Error saving the file.');
+        }
+	}
+	});           
+}
+createUploader();     
+</script>
+{%endcompress%}

@@ -1,0 +1,28 @@
+{%spaceless%}
+{% load flatpages %}
+{% load daddy_avatar %}
+{% get_flatpages as flatpages %}
+<ul class="nav nav-tabs nav-first">
+
+	<li class="pull-left">
+		<a href="{% url 'pin-home' %}">Home</a>
+	</li>
+	
+	{% for page in flatpages %}
+        <li class="pull-right"><a href="{{ page.url }}">{{ page.title }}</a></li>
+    {% endfor %}
+	{% if user.is_authenticated %}
+	
+	<li class="pull-right">
+		<a href="/accounts/logout/" >Logout</a>
+	</li>
+        <li class="pull-left">
+		<a href="{% url 'pin-user' user.id%}">My Stocks</a>
+	</li>
+	{%else%}
+	<li class="pull-right">
+		<a href="/accounts/login/">Login</a>
+	</li>
+	{%endif%}
+</ul>
+{%endspaceless%}

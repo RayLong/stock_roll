@@ -11,10 +11,6 @@ def to_image(filename,data):
   step=WIDTH/(n+1)
   the_max=max(data, key=(lambda d: d[0]))[0]
   the_min=min(data, key=(lambda d: d[3]))[3]
-  
-  #for j in range(n):
-  #    for i in range(4):
-  #        data[j][i]=(the_max-data[j][i])*height/(the_max-the_min)
   factor=height/(the_max-the_min)
   im = Image.new('RGB',(int(WIDTH),int(height)),color=(255,255,255,0))
   dwg = ImageDraw.Draw(im)

@@ -144,6 +144,29 @@ def check_istradingday():
             if trading_date == datetime.now().strftime("%Y-%m-%d"):
                 return True
     return False
+
+def download_today(stock_symbol,callback=None):
+    url='http://hq.sinajs.cn/list='+stock_symbol
+    def on_received(return_str):
+        data=None
+        if return_str:
+           s=return_str.split('=')[1]
+           if ',' in s:
+               data={}
+               data_a=s.split(',')
+               if float(data_a[1]) != 0:
+                   data['open']=float(data_a[1])
+                   data['close']=float(data_a[2])
+                   data['high']=float(data_a[4])
+                   data['low']=float(data_a[5])
+                   data['volume']=float(data_a[8])/10000.0
+                   data['total']=float(data_a[9])/10000.0
+               else:
+                   print 'zero data=%s' % data_a[1]
+                   data=None
+        if callback:
+           callback(data)
+    async_fetch(url, on_received)
     
 def async_fetch(url, callback):
     hc=httpclient.AsyncHTTPClient()
@@ -151,27 +174,33 @@ def async_fetch(url, callback):
           pass
     ns=namespace()
     ns.callback_count=0
-    def on_response(respone):
+    def on_response(response):
         ns.callback_count+=1
-        if respone.error:
-           print respone.error
-           if ns.callback_count < 5:
-              ioloop.IOLoop.instance().add_timeout(10000, partial(hc.fetch, url, callback=on_response))
+        if response.error:
+           print ("error[%d]:" % ns.callback_count),response.error
+           if response.code == 404:
+              print "url:", url
+              contents = None
+           elif ns.callback_count < 5:
+              if response.code == 599:
+                 ioloop.IOLoop.instance().add_timeout(time.time()+60, partial(hc.fetch, url, callback=on_response))
+              else:
+                 ioloop.IOLoop.instance().add_timeout(time.time()+10, partial(hc.fetch, url, callback=on_response))
               return
            else:
               contents=None
         else:
-           contents=respone.buffer.read()
+           contents=response.buffer.read()
         if callback:
            callback(contents)
     hc.fetch(url, callback=on_response)
 
 
-def download_history(stock_code, start_date_str, end_date_str, verbose, callback=None):
+def download_history(stock_symbol, start_date_str, end_date_str, verbose, callback=None):
    url="http://yahoo.compass.cn/stock/frames/frmHistoryDetail.php"
    start_date_para=reformat_date(start_date_str,"start")
    end_date_para=reformat_date(end_date_str,"end")
-   url=url+"?his_type=day&code="+stockcode2str(stock_code)+"&"+start_date_para+"&"+end_date_para
+   url=url+"?his_type=day&code="+stock_symbol+"&"+start_date_para+"&"+end_date_para
    
    if verbose == 1:
      print "handling...",url
@@ -209,20 +238,3 @@ def download_history(stock_code, start_date_str, end_date_str, verbose, callback
 
 random.seed()
 
-if __name__=="__main__":
-   def insert(*args):
-       print args
-   if len(sys.argv) == 5:
-      download_history(int(sys.argv[1]),sys.argv[2],sys.argv[3],int(sys.argv[4]),insert) 
-   elif len(sys.argv) == 2:
-      print download_f10(int(sys.argv[1]))
-   elif len(sys.argv) == 1:
-      #check_istradingday()
-      def cb(data):
-         print data
-         ioloop.IOLoop.instance().stop()
-      async_fetch('http://www.google.com',cb)
-   else:
-      print >>sys.stderr, "need one or four parameters"
-      exit(1)
-   ioloop.IOLoop.instance().start()

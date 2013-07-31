@@ -9,8 +9,10 @@ from django.template.defaultfilters import stringfilter
 from django.utils.text import normalize_newlines
 from django.utils.safestring import mark_safe
 
-from pin.models import Likes as pin_likes, Notify
+from pin.models import Likes as pin_likes, Notify, StockTrend
 from user_profile.models import Profile
+import os
+import dpin
 
 register = Library()
 
@@ -91,6 +93,26 @@ def get_host(value):
         return ''
 
 @register.filter
+def get_svg(stock_code, modify_date):
+    svg_file_string="stock_pics/"+str(stock_code)+"-"+modify_date.strftime("%Y-%m-%d")+".svg"
+    if not os.path.isfile(dpin.settings.MEDIA_ROOT+"/"+svg_file_string):
+        import daemon.stocks_db as DB
+        import daemon.drawing_svg as drawing
+        db=DB.ORM_Stock()
+        data=db.get_stock_data(stock_code,['high_price','open_price','close_price','low_price'])
+        if data.exists():
+            data=map((lambda m : [m['high_price'],m['open_price'],m['close_price'],m['low_price']]), list(data)[-20:])
+            t=StockTrend.objects.filter(stock_code=stock_code)[0]
+            svg_content_string=drawing.to_image(dpin.settings.MEDIA_ROOT+"/"+svg_file_string, data, t.a, t.b, t.k)
+        else:
+            svg_content_string='<svg></svg>'
+    else:
+        f=open(dpin.settings.MEDIA_ROOT+"/"+svg_file_string,'r')
+        svg_content_string=f.read()
+        f.close()
+    return mark_safe(svg_content_string)
+
+@register.filter
 def date_from_timestamp(value):
     return datetime.datetime.fromtimestamp(int(value)).strftime('%Y-%m-%d %H:%M:%S')
 
@@ -102,6 +124,7 @@ def remove_newlines(text):
     normalized_text = normalize_newlines(text)
     # Then simply remove the newlines like so.
     return mark_safe(normalized_text.replace('\n', ' '))
+
 remove_newlines.is_safe = True
 remove_newlines = stringfilter(remove_newlines)
 register.filter(remove_newlines)

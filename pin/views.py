@@ -33,10 +33,14 @@ from tastypie.models import ApiKey
 
 MEDIA_ROOT = settings.MEDIA_ROOT
 
-def home(request):
+def popular(request):
     latest_items = Post.objects.all().order_by('rating')[:20]
     
     form = PinForm()
+
+    #for x in latest_items:
+    #    if not 'stock_pics' in x.image:
+           
     
     if request.is_ajax():
         if latest_items.exists():
@@ -50,10 +54,10 @@ def home(request):
                               {'latest_items': latest_items, 'offset':0},
                               context_instance=RequestContext(request))
 
-def popular(request):
+def home(request):
     ROW_PER_PAGE = 20
     
-    post_list = Post.objects.all().order_by('-like')
+    post_list = Post.objects.all().order_by('rating')
     paginator = Paginator(post_list, ROW_PER_PAGE)
     
     

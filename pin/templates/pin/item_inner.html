@@ -1,7 +1,6 @@
 {% load pin_tags %}
 {% load daddy_avatar %}
 {% load comments %}
-{% load thumbnail %}
 
 <!-- start pin item -->
 <div class="feed-item feed-inner-item" itemscope itemtype="http://schema.org/CreativeWork" >
@@ -24,13 +23,11 @@
 		
 	</div> --!>
 	<div class="feed-inner">
-		{% thumbnail item_inner.image "603" upscale=False as im %}
-		<div style="width: {{ im.width }}px; margin: 0 auto">
+		<div style="width: 603px; height: 373px; margin: 0 auto">
 			<a href="{{MEDIA_URL}}{{item_inner.image}}" >
-			<img itemprop="image" src="{{ im.url }}" width="{{ im.width }}" alt="{{item_inner.text|remove_newlines|truncatewords:15}}">
+            {{item_inner.stock_code|get_svg:item_inner.create}}
 			</a>
 		</div>
-		{% endthumbnail %} 
 		<div class="feed-item-desc" itemprop="name" >
 			{{item_inner.text|safe|linebreaksbr}}
 		</div>
@@ -45,15 +42,6 @@
 </a>
 				{% endif %}
 			</div>
-			<div class="feed-item-date">
-				{{item_inner.create|date:"Y-m-d"}}
-			</div>
-			
-			<div style="direction: ltr; font-family: Arial, Helvetica, sans-serif">
-				<a rel="nofollow" target="_blank" href="{{item_inner.url}}">{{item_inner.url|get_host}}</a>
-			</div>
-			
-			
 		</div>
 	</div>
 		
@@ -70,11 +58,7 @@
                    {% get_comment_form for item_inner as form %}
 			{% csrf_token %}
 			<textarea id="id_comment" rows="3" cols="60" name="comment" placeholder="Enter your comments" ></textarea>			
-			
-	
-	
-                        <input type="submit" class="btn btn-primary" name="submit" value="Post">
-
+               <input type="submit" class="btn btn-primary" name="submit" style="margin-left:10px" value="Post"> </input>
 			{{form.content_type}}
 			{{form.object_pk}}
 			{{form.timestamp}}

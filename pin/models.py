@@ -147,12 +147,18 @@ def user_comment_post(sender, **kwargs):
             notify.type = 2
             notify.save()
 
+class StockTrend(models.Model):
+      stock_code = models.IntegerField(primary_key=True)
+      a = models.FloatField()
+      b = models.FloatField()
+      k = models.FloatField()
+ 
 
 class StockList(models.Model):
       stock_code = models.IntegerField(primary_key=True)
       stock_name = models.CharField(max_length=50)
       gradient   = models.FloatField()
-
+      trend = models.ForeignKey(StockTrend)
       def __unicode__(self):
           return self.stock_name
 
@@ -166,12 +172,7 @@ class StockData(models.Model):
       volume = models.FloatField()
       quantity = models.FloatField()
 
-class StockQuantityHistory(models.Model):
-      stock_ref = models.ForeignKey(StockList)
-      change_date = models.DateField()
-      quantity = models.FloatField()
-
-                
+               
 post_save.connect(Stream.add_post, sender=Post)
 post_save.connect(Likes.user_like_post, sender=Likes)
 post_save.connect(Post.change_tag_slug, sender=Tag)

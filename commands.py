@@ -23,87 +23,68 @@ from daemon.drawing import to_image
 from daemon.linear_trend import linear_trend
 from daemon import stocks_db
 from pin.models import Post, Likes
-from daemon.batch_download import batch_download
+from daemon.batch_download import batch_download, batch_download2
 
 
 def update_post(db):
    stocks_queryset=db.get_stocks_list()
-   stock_list=list(set(map((lambda a: a.post.stock_code), Likes.objects.exclude(user_id=1))))
 
-   local_path_name=dpin.settings.MEDIA_ROOT+"/stock_pics/"
-   if len(stock_list):
-      stock_pictures=Post.objects.exclude(stock_code__in=stock_list)
-      stock_list=list(stocks_queryset.filter(stock_code__in=stock_list))
-   else:
-      stock_pictures=Post.objects.all()
-
-   for pp in stock_pictures:
-       try:
-           os.remove(local_path_name+str(pp.stock_code)+".jpg")
-       except OSError:
-           print "remove file failed"
-   stock_pictures.delete()
-
-   stock_list+=list(stocks_queryset.order_by('gradient')[:20])
+   stock_list=list(stocks_queryset.order_by('gradient'))
+   local_path_name=dpin.settings.MEDIA_ROOT+"/"
+   superuser_id=User.objects.filter(is_superuser=True)[0].id
    for x in stock_list:
-       stock_data=db.get_stock_data(x.stock_code, 
-                   ['trade_date','open_price','high_price',
-                     'low_price','close_price']).order_by('trade_date')
-       if stock_data.count():
-            cal_date=stock_data[stock_data.count()-1]['trade_date'].strftime('%Y-%m-%d')
-            stock_data=map(lambda m:[m['high_price'], 
-                           m['open_price'], m['close_price'], 
-                           m['low_price']], stock_data)
-            file_name=str(x.stock_code)+".jpg"
-            to_image(local_path_name+file_name, stock_data)
-            superuser_id=User.objects.filter(is_superuser=True)[0].id
-            add = Post.objects.filter(pk=x.stock_code)
-            if add.count():
-               temp=add[0]
-               temp.rating=x.gradient
+        cal_date=db.get_latest_date(x.stock_code)
+        if cal_date == None:
+           print "not data, ignore stock:",x.stock_code
+           add = Post.objects.filter(pk=x.stock_code)
+           if add.exists():
+              add.delete()
+           continue
+        add = Post.objects.filter(pk=x.stock_code)
+        if add.count():
+           temp=add[0]
+           if temp.create != cal_date:
+               try:
+                   os.remove(local_path_name+'stock_pics/'+str(x.stock_code)+'-'+temp.create.strftime("%Y-%m-%d")+'.svg')
+               except OSError:
+                   pass
                temp.create=cal_date
+               temp.rating=x.gradient
+               temp.text=("%06d %s %f\n" % (x.stock_code, x.stock_name, x.gradient))+'date:'+cal_date.strftime('%Y-%m-%d')
                temp.save()
-            else:
-               add = Post(image=('stock_pics/'+file_name ), 
-                       url=('/media/stock_pics/'+file_name ), 
-                       stock_code=x.stock_code,
-                       rating=x.gradient,
-                       create=cal_date, 
-                       text=("%06d %s\n%f" % (x.stock_code, x.stock_name, x.gradient)),
-                       user_id=superuser_id)
-               add.save()
+        else:
+           add = Post(image="", 
+                   url='', 
+                   stock_code=x.stock_code,
+                   rating=x.gradient,
+                   create=cal_date, 
+                   text=("%06d %s %f\n" % (x.stock_code, x.stock_name, x.gradient))+'date:'+cal_date.strftime('%Y-%m-%d'),
+                   user_id=superuser_id)
+           add.save()
 
 
 def finished(db, start_date):
     print "finishing"
-    if start_date:
-        db.delete_earlier_than(start_date)
     for stock in db.get_stocks_list():        
         stock_code=stock.stock_code
         stock_name=stock.stock_name 
-        stock_data=db.get_stock_data(stock_code, ['trade_date','open_price','high_price','low_price','close_price']).order_by('trade_date')
-        if stock_data.count():
-             stock_data=map(lambda m:[m['high_price'], m['open_price'], m['close_price'], m['low_price']], stock_data)
-             v_max=0
-             i_max=0
-             for i in range(len(stock_data)):
-                 if stock_data[i][0] > v_max:
-                    v_max=stock_data[i][0]
-                    i_max=i
-             if i_max < len(stock_data) - 1:
-                stock_data=stock_data[i_max:]
-                gradient=linear_trend(stock_data)
-                db.add_stock_gradient(stock_code, gradient) 
+        stock_data=db.get_stock_data(stock_code, ['trade_date','open_price','high_price','low_price','close_price'])
+        data_count=stock_data.count()
+        if data_count:
+             if stock_data[data_count-1]['trade_date'] != date.today():
+                print "[%06d] data is old ignore" % stock_code, stock_data[data_count-1]['trade_date'].strftime('%Y-%m-%d')
+                db.add_stock_gradient(stock_code, 0, 0, 0) 
+                continue
+             if data_count>20:
+                data_count-=20
              else:
-                 v_min=stock_data[0][0]
-                 i_min=0
-                 for i in range(len(stock_data)):
-                     if stock_data[i][0] < v_min:
-                        v_min=stock_data[i][0]
-                        i_min=i
-                 stock_data=stock_data[i_min:]
-                 gradient=linear_trend(stock_data)
-                 db.add_stock_gradient(stock_code, gradient)
+                data_count=0
+             stock_data=map(lambda m:[m['high_price'], m['open_price'], m['close_price'], m['low_price']], list(stock_data[data_count:]))
+             gradient,b,k=linear_trend(stock_data)
+             db.add_stock_gradient(stock_code, gradient, b, k) 
+        else:
+             print "[%06d] data is empty" % stock_code
+             db.add_stock_gradient(stock_code, 0, 0, 0) 
     update_post(db)
     ioloop.IOLoop.instance().stop()
 
@@ -135,6 +116,10 @@ parser.add_option("-g", "--get_one", action='store', type='string',
 parser.add_option("-s", "--run-server", dest="run_server", action="store_true",
                   help="run the http server")
 
+parser.add_option("-d", "--download_today", dest="dl_today", action="store_true",
+                  help="download stocks data for today!")
+
+
 (options, args) = parser.parse_args()
 
 if  options.list_file:
@@ -154,14 +139,19 @@ elif options.period:
     days=timedelta(days=int(options.period))
     end_date=datetime.now()+timedelta(days=1)
     start_date=end_date-days
-    if not stock_dl.check_istradingday():
-       print "today is not trading day"
-       exit(1)
+    #if not stock_dl.check_istradingday():
+    #   print "today is not trading day"
+    #   exit(1)
     print "downloading..."
     db=stocks_db.ORM_Stock()
     print start_date, end_date
-    batch_download(db, start_date, end_date, finished)
-    ioloop.IOLoop.instance().start() 
+    if batch_download(db, start_date, end_date, finished):
+       ioloop.IOLoop.instance().start() 
+
+elif options.dl_today:
+     db=stocks_db.ORM_Stock()
+     if batch_download2(db,finished):
+        ioloop.IOLoop.instance().start()
                       
 elif options.get_one:
    db=stocks_db.ORM_Stock()
